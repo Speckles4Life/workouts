@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e0a">
+<title>PPLC Log</title>
+<style>
+  :root{
+    --bg:#0a0e0a; --panel:#0f150f; --panel2:#141d14;
+    --line:#1d2a1d; --txt:#c8f7c8; --dim:#6fa86f;
+    --green:#39ff14; --green2:#00d836; --red:#ff5c5c;
+    --r:12px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --tap:48px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);font-family:var(--sans)}
+  body{padding:0 0 104px;max-width:560px;margin:0 auto;min-height:100vh;font-size:16px}
+  /* honor OS reduce-motion */
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+  /* visible keyboard focus everywhere for accessibility */
+  :focus-visible{outline:3px solid var(--green);outline-offset:2px}
+  a{color:var(--green)}
+
+  header{
+    position:sticky;top:0;z-index:20;background:var(--bg);
+    border-bottom:1px solid var(--line);padding:14px 16px 10px;
+    padding-top:max(14px,env(safe-area-inset-top));
+  }
+  h1{margin:0;font-size:16px;letter-spacing:.2em;font-weight:800;text-transform:uppercase;font-family:var(--mono)}
+  h1 b{color:var(--green)}
+  .sub{font-size:12px;color:var(--dim);letter-spacing:.04em;margin-top:3px}
+  .tabs{display:flex;gap:6px;margin-top:12px}
+  .tabs button{
+    flex:1;background:var(--panel);border:1px solid var(--line);color:var(--dim);
+    min-height:var(--tap);border-radius:10px;font-size:14px;font-weight:700;letter-spacing:.04em;
+  }
+  .tabs button.on{background:var(--green);color:#031003;border-color:var(--green)}
+  main{padding:16px}
+
+  .daysel{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
+  .daysel button{
+    background:var(--panel);border:1px solid var(--line);color:var(--txt);
+    padding:14px 12px;border-radius:var(--r);text-align:left;min-height:var(--tap);
+  }
+  .daysel button .t{font-weight:800;font-size:15px;display:block}
+  .daysel button .d{font-size:12px;color:var(--dim);margin-top:3px;display:block}
+  .daysel button[aria-pressed=true]{border-color:var(--green);background:var(--panel2)}
+  .daysel button[aria-pressed=true] .t{color:var(--green)}
+
+  .datebar{margin-bottom:16px}
+  label.fld{display:block;font-size:12px;color:var(--dim);letter-spacing:.04em;font-weight:700}
+  input[type=date],input[type=text],select{
+    width:100%;margin-top:6px;background:var(--panel);border:1px solid var(--line);
+    color:var(--txt);min-height:var(--tap);padding:0 12px;border-radius:10px;
+    font-family:var(--mono);font-size:16px;
+  }
+  select{font-weight:700}
+
+  .ex{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+  .ex .name{font-weight:800;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .ex .name .tag{font-size:10px;letter-spacing:.1em;color:var(--dim);border:1px solid var(--line);padding:3px 7px;border-radius:6px;font-weight:700;font-family:var(--mono)}
+  .ex .last{font-size:12px;color:var(--dim);margin-top:6px;font-family:var(--mono)}
+  .delx{background:none;border:1px solid var(--line);color:var(--dim);font-size:16px;line-height:1;border-radius:8px;min-width:40px;min-height:40px}
+
+  .field{margin-top:14px}
+  .field>.lab{font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:6px}
+  .step{display:flex;align-items:stretch;gap:8px}
+  .step button{
+    min-width:var(--tap);min-height:var(--tap);background:var(--panel2);border:1px solid var(--line);
+    color:var(--green);font-size:24px;font-weight:800;border-radius:10px;line-height:1;font-family:var(--mono);
+  }
+  .step button:active{background:var(--green);color:#031003}
+  .step input{
+    flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    min-height:var(--tap);border-radius:10px;font-family:var(--mono);font-size:22px;
+    text-align:center;font-weight:800;width:100%;
+  }
+  .step input:focus{outline:none;border-color:var(--green)}
+
+  .addex{width:100%;background:var(--panel);border:1px dashed var(--line);color:var(--dim);min-height:var(--tap);border-radius:var(--r);font-weight:700;font-size:14px}
+  .stretch{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;margin-bottom:12px}
+  .stretch .h{font-size:12px;letter-spacing:.1em;color:var(--green);font-weight:800;text-transform:uppercase;font-family:var(--mono)}
+  .stretch p{margin:7px 0 0;font-size:14px;color:var(--dim);line-height:1.5}
+
+  .save{
+    position:fixed;bottom:16px;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+    width:calc(100% - 32px);max-width:528px;background:var(--green);color:#031003;border:none;
+    min-height:56px;border-radius:14px;font-weight:800;font-size:16px;letter-spacing:.04em;z-index:30;
+  }
+  .timer{
+    position:fixed;bottom:84px;bottom:calc(84px + env(safe-area-inset-bottom));right:16px;z-index:31;
+    background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:14px;
+    padding:10px 12px;display:flex;align-items:center;gap:10px;
+  }
+  .timer .num{font-family:var(--mono);font-size:22px;font-weight:800;min-width:52px;text-align:center}
+  .timer button{background:var(--green);border:none;color:#031003;font-weight:800;border-radius:9px;min-height:40px;padding:0 12px;font-size:13px}
+  .timer button.r{background:var(--panel);border:1px solid var(--line);color:var(--dim);min-width:40px;padding:0}
+  .timer.run .num{color:var(--green)}
+  .timer.done{border-color:var(--red)} .timer.done .num{color:var(--red)}
+
+  .pcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+  .pstat{display:flex;gap:18px;margin-bottom:14px}
+  .pstat .b{flex:1}
+  .pstat .b .k{font-size:11px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;font-weight:700}
+  .pstat .b .v{font-family:var(--mono);font-size:22px;font-weight:800;margin-top:3px}
+  .pstat .b .v.up{color:var(--green)} .pstat .b .v.dn{color:var(--red)}
+  .chart svg{width:100%;height:auto;display:block;margin-top:6px}
+  .plog{font-family:var(--mono);font-size:13px;color:var(--dim);margin-top:8px}
+  .plog .ln{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line)}
+
+  .hsess{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+  .hsess .top{display:flex;justify-content:space-between;align-items:baseline}
+  .hsess .day{font-weight:800;color:var(--green);letter-spacing:.04em}
+  .hsess .dt{font-family:var(--mono);font-size:13px;color:var(--dim)}
+  .hsess .li{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-top:1px solid var(--line);margin-top:8px}
+  .hsess .li:first-of-type{border-top:none;margin-top:10px}
+  .hsess .li .v{font-family:var(--mono);color:var(--dim)}
+  .hdel{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;font-size:13px;min-height:40px;padding:0 12px;margin-top:10px}
+  .empty{text-align:center;color:var(--dim);padding:50px 20px;font-size:15px;line-height:1.6}
+  .tools{display:flex;gap:10px;margin-top:14px}
+  .tools button{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--txt);min-height:var(--tap);border-radius:12px;font-weight:700;font-size:14px}
+  .tools button.danger{color:var(--red);border-color:#3a2020}
+  .note{font-size:12px;color:var(--dim);line-height:1.6;margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .toast{position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:var(--green);color:#031003;padding:12px 18px;border-radius:10px;font-weight:800;font-size:14px;z-index:50;opacity:0;transition:opacity .25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<header>
+  <h1>PPLC<b>·</b>LOG</h1>
+  <div class="sub">offline · no login · data stays on this device</div>
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button id="tabLog" class="on" role="tab" aria-selected="true" onclick="view('log')">Log</button>
+    <button id="tabProg" role="tab" aria-selected="false" onclick="view('prog')">Progress</button>
+    <button id="tabHist" role="tab" aria-selected="false" onclick="view('hist')">History</button>
+  </div>
+</header>
+
+<main id="logView" role="tabpanel" aria-label="Log a session">
+  <div class="daysel" id="daysel" role="group" aria-label="Choose workout day"></div>
+  <div class="datebar">
+    <label class="fld" for="sessDate">Date</label>
+    <input type="date" id="sessDate">
+  </div>
+  <div id="stretchTop"></div>
+  <div id="exList"></div>
+  <button class="addex" onclick="addBlank()">+ Add exercise</button>
+  <div id="stretchBot"></div>
+</main>
+
+<main id="progView" role="tabpanel" aria-label="Progress" style="display:none">
+  <label class="fld" for="progSel">Exercise</label>
+  <select id="progSel" onchange="renderProg()" style="margin-bottom:14px"></select>
+  <div id="progBody"></div>
+</main>
+
+<main id="histView" role="tabpanel" aria-label="History" style="display:none">
+  <div id="histList"></div>
+  <div class="tools">
+    <button onclick="exportData()">Export backup (.json)</button>
+    <button onclick="document.getElementById('imp').click()">Import</button>
+  </div>
+  <div class="tools">
+    <button class="danger" onclick="wipe()">Erase all data</button>
+  </div>
+  <input type="file" id="imp" accept="application/json" class="sr" aria-label="Import backup file" onchange="importData(event)">
+  <p class="note">All sessions live only in this browser's local storage. Clearing browsing data, switching browsers, or reinstalling will erase them. Export a backup periodically — that .json file is your only safety net.</p>
+</main>
+
+<button class="save" onclick="saveSession()">Save session</button>
+
+<div class="timer" id="timer" role="group" aria-label="Rest timer">
+  <span class="num" id="tnum" aria-live="off">1:30</span>
+  <button onclick="startTimer()" id="tbtn">Rest</button>
+  <button class="r" onclick="resetTimer()" aria-label="Reset timer">↺</button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+const KEY="ppla_sessions_v1"; // unchanged key: keeps any data from earlier versions
+
+const DAYS={
+  push:{label:"Push", desc:"Chest · Shoulders · Triceps",
+    ex:[{n:"Barbell Bench Press",t:"BB"},{n:"Dumbbell Shoulder Press",t:"DB"},
+        {n:"Dumbbell Incline Press",t:"DB"},{n:"Dumbbell Lateral Raise",t:"DB"}],
+    warm:"Arm circles, band pull-aparts, light push-ups — 3 min.",
+    cool:"Doorway chest stretch, overhead triceps stretch — 2 min."},
+  pull:{label:"Pull", desc:"Back · Biceps",
+    ex:[{n:"Barbell Bent-Over Row",t:"BB"},{n:"Dumbbell Single-Arm Row",t:"DB"},
+        {n:"Barbell Romanian Deadlift",t:"BB"},{n:"Dumbbell Bicep Curl",t:"DB"}],
+    warm:"Cat-cow, scapular pulls, light rows — 3 min.",
+    cool:"Lat stretch on rack, biceps wall stretch — 2 min."},
+  legs:{label:"Legs", desc:"Quads · Hamstrings · Calves",
+    ex:[{n:"Barbell Back Squat",t:"BB"},{n:"Barbell Romanian Deadlift",t:"BB"},
+        {n:"Dumbbell Walking Lunge",t:"DB"},{n:"Dumbbell Calf Raise",t:"DB"}],
+    warm:"Bodyweight squats, leg swings, hip circles — 3 min.",
+    cool:"Quad stretch, hamstring forward fold, calf wall stretch — 2 min."},
+  core:{label:"Core + Functional", desc:"Core · Stability · Mobility",
+    ex:[{n:"Dumbbell Suitcase Carry (log sec as reps)",t:"DB"},{n:"Dumbbell Russian Twist",t:"DB"},
+        {n:"Plank Hold (log sec as reps)",t:"BW"},{n:"Dead Bug (reps per side)",t:"BW"}],
+    warm:"World's greatest stretch, hip openers, cat-cow — 3 min.",
+    cool:"Child's pose, supine twist, 90/90 hip stretch — 2 min."},
+};
+
+let curDay="push";
+let exState=[]; // [{n,t,w,s,r,editable?}]
+
+function todayStr(){const d=new Date(),z=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());}
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
+function store(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){toast("Save failed — storage blocked")}}
+
+// most recent logged entry for a given exercise name, for pre-fill
+function lastFor(name){
+  const all=load();
+  for(const s of all){ // load() returns newest-first
+    const hit=s.ex.find(e=>e.n===name);
+    if(hit) return hit;
+  }
+  return null;
+}
+
+function buildDaySel(){
+  const el=document.getElementById("daysel"); el.innerHTML="";
+  Object.entries(DAYS).forEach(([k,v])=>{
+    const b=document.createElement("button");
+    b.type="button"; b.setAttribute("aria-pressed", k===curDay?"true":"false");
+    b.innerHTML=`<span class="t">${v.label}</span><span class="d">${v.desc}</span>`;
+    b.onclick=()=>{curDay=k;loadTemplate();buildDaySel()};
+    el.appendChild(b);
+  });
+}
+function loadTemplate(){
+  exState=DAYS[curDay].ex.map(e=>{
+    const prev=lastFor(e.n);
+    return {n:e.n,t:e.t,
+      w: prev?prev.w:"",
+      s: prev?prev.s:"3",
+      r: prev?prev.r:"8",
+      prev: prev?`${prev.w||0}kg · ${prev.s}×${prev.r}`:null};
+  });
+  renderEx(); renderStretch();
+}
+function renderStretch(){
+  const d=DAYS[curDay];
+  document.getElementById("stretchTop").innerHTML=
+    `<div class="stretch"><div class="h">Warm-up</div><p>${d.warm}</p></div>`;
+  document.getElementById("stretchBot").innerHTML=
+    `<div class="stretch"><div class="h">Cool-down</div><p>${d.cool}</p></div>`;
+}
+
+function field(i,key,label,stepVal,min,unit){
+  const id=`f_${i}_${key}`;
+  return `<div class="field">
+    <label class="lab" for="${id}">${label}</label>
+    <div class="step">
+      <button type="button" aria-label="Decrease ${label}" onclick="bump(${i},'${key}',${-stepVal},${min})">−</button>
+      <input id="${id}" type="number" inputmode="decimal" value="${exState[i][key]}"
+        aria-label="${label}${unit?(' in '+unit):''}"
+        oninput="exState[${i}].${key}=this.value">
+      <button type="button" aria-label="Increase ${label}" onclick="bump(${i},'${key}',${stepVal},${min})">+</button>
+    </div>
+  </div>`;
+}
+function renderEx(){
+  const el=document.getElementById("exList"); el.innerHTML="";
+  exState.forEach((e,i)=>{
+    const d=document.createElement("div"); d.className="ex";
+    const nameHTML=e.editable
+      ? `<input type="text" value="${e.n}" aria-label="Exercise name" oninput="exState[${i}].n=this.value" style="font-size:15px;min-height:40px;flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:0 10px;font-family:var(--sans)">`
+      : `<span>${e.n}</span>`;
+    d.innerHTML=`
+      <div class="name">${nameHTML}
+        <span style="display:flex;gap:8px;align-items:center">
+          ${e.t?`<span class="tag">${e.t}</span>`:""}
+          <button class="delx" aria-label="Remove ${e.n}" onclick="delEx(${i})">✕</button>
+        </span>
+      </div>
+      ${e.prev?`<div class="last">Last: ${e.prev}</div>`:""}
+      ${field(i,"w","Weight (kg)",2.5,0,"kilograms")}
+      <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${field(i,"s","Sets",1,1,"")}
+        ${field(i,"r","Reps",1,0,"")}
+      </div>`;
+    el.appendChild(d);
+  });
+}
+function bump(i,key,delta,min){
+  let v=parseFloat(exState[i][key]); if(isNaN(v)) v=0;
+  v=Math.round((v+delta)*10)/10;
+  if(v<min) v=min;
+  exState[i][key]=String(v);
+  const inp=document.getElementById(`f_${i}_${key}`); if(inp) inp.value=exState[i][key];
+}
+function delEx(i){ exState.splice(i,1); renderEx(); }
+function addBlank(){ exState.push({n:"New exercise",t:"",w:"",s:"3",r:"8",editable:true,prev:null}); renderEx(); }
+
+function saveSession(){
+  const date=document.getElementById("sessDate").value||todayStr();
+  const logged=exState.filter(e=>e.w!==""||e.n!=="New exercise");
+  if(!logged.length){ toast("Nothing to save"); return; }
+  const all=load();
+  all.unshift({id:Date.now(),date,day:curDay,dayLabel:DAYS[curDay].label,
+    ex:logged.map(e=>({n:e.n,w:e.w,s:e.s,r:e.r}))});
+  store(all);
+  toast("Saved ✓");
+  loadTemplate();
+}
+
+function renderHist(){
+  const el=document.getElementById("histList"); const all=load();
+  if(!all.length){ el.innerHTML=`<div class="empty">No sessions yet.<br>Log one and it shows up here.</div>`; return; }
+  el.innerHTML=all.map(s=>`
+    <div class="hsess">
+      <div class="top"><span class="day">${s.dayLabel}</span><span class="dt">${s.date}</span></div>
+      ${s.ex.map(e=>`<div class="li"><span>${e.n}</span><span class="v">${e.w||0}kg · ${e.s}×${e.r}</span></div>`).join("")}
+      <button class="hdel" onclick="delSess(${s.id})">Delete</button>
+    </div>`).join("");
+}
+function delSess(id){ if(confirm("Delete this session?")){ store(load().filter(s=>s.id!==id)); renderHist(); } }
+
+// ---- progress (PPL only) ----
+function pplData(){
+  const all=load().filter(s=>["push","pull","legs"].includes(s.day));
+  const map={};
+  all.forEach(s=>s.ex.forEach(e=>{
+    const w=parseFloat(e.w); if(isNaN(w)) return;
+    (map[e.n]=map[e.n]||[]).push({date:s.date,w,s:e.s,r:e.r});
+  }));
+  Object.values(map).forEach(a=>a.sort((x,y)=>x.date.localeCompare(y.date)));
+  return map;
+}
+function buildProg(){
+  const map=pplData(), names=Object.keys(map).sort();
+  const sel=document.getElementById("progSel"), body=document.getElementById("progBody");
+  if(!names.length){
+    sel.style.display="none"; sel.innerHTML="";
+    body.innerHTML=`<div class="empty">No PPL data yet.<br>Log a Push, Pull or Legs session with a weight, then come back.</div>`;
+    return;
+  }
+  sel.style.display="";
+  const keep=sel.value && names.includes(sel.value) ? sel.value : names[0];
+  sel.innerHTML=names.map(n=>`<option ${n===keep?"selected":""}>${n}</option>`).join("");
+  renderProg();
+}
+function renderProg(){
+  const map=pplData(), name=document.getElementById("progSel").value, d=map[name]||[];
+  const body=document.getElementById("progBody");
+  if(d.length<1){ body.innerHTML=`<div class="empty">No data for this lift.</div>`; return; }
+  const first=d[0].w,last=d[d.length-1].w,max=Math.max(...d.map(x=>x.w));
+  const delta=Math.round((last-first)*10)/10, cls=delta>0?"up":delta<0?"dn":"", sign=delta>0?"+":"";
+  body.innerHTML=`
+    <div class="pcard">
+      <div class="pstat">
+        <div class="b"><div class="k">Current</div><div class="v">${last}kg</div></div>
+        <div class="b"><div class="k">Best</div><div class="v">${max}kg</div></div>
+        <div class="b"><div class="k">Change</div><div class="v ${cls}">${sign}${delta}kg</div></div>
+      </div>
+      <div class="chart">${svgChart(d)}</div>
+      <div class="plog">${d.slice().reverse().map(x=>
+        `<div class="ln"><span>${x.date}</span><span>${x.w}kg · ${x.s}×${x.r}</span></div>`).join("")}</div>
+    </div>`;
+}
+function svgChart(d){
+  const W=480,H=180,pad=30;
+  if(d.length===1){const cy=H/2;
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="One data point: ${d[0].w} kilograms"><circle cx="${W/2}" cy="${cy}" r="5" fill="#39ff14"/><text x="${W/2}" y="${cy-12}" fill="#c8f7c8" font-size="13" text-anchor="middle" font-family="monospace">${d[0].w}kg</text></svg>`;}
+  const ws=d.map(x=>x.w),min=Math.min(...ws),max=Math.max(...ws),rng=(max-min)||1;
+  const x=i=>pad+i*(W-2*pad)/(d.length-1);
+  const y=w=>H-pad-((w-min)/rng)*(H-2*pad);
+  const pts=d.map((p,i)=>`${x(i)},${y(p.w)}`).join(" ");
+  const dots=d.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.w)}" r="4" fill="#39ff14"/><text x="${x(i)}" y="${y(p.w)-9}" fill="#6fa86f" font-size="10" text-anchor="middle" font-family="monospace">${p.w}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight trend from ${d[0].w} to ${d[d.length-1].w} kilograms over ${d.length} sessions">
+    <polyline points="${pts}" fill="none" stroke="#39ff14" stroke-width="2.5" stroke-linejoin="round"/>
+    ${dots}
+    <text x="${pad}" y="${H-6}" fill="#6fa86f" font-size="10" font-family="monospace">${d[0].date.slice(5)}</text>
+    <text x="${W-pad}" y="${H-6}" fill="#6fa86f" font-size="10" text-anchor="end" font-family="monospace">${d[d.length-1].date.slice(5)}</text>
+  </svg>`;
+}
+
+function view(v){
+  const map={log:"logView",prog:"progView",hist:"histView"};
+  Object.entries(map).forEach(([k,id])=>document.getElementById(id).style.display=v===k?"":"none");
+  document.querySelector(".save").style.display=v==="log"?"":"none";
+  document.getElementById("timer").style.display=v==="log"?"":"none";
+  [["log","tabLog"],["prog","tabProg"],["hist","tabHist"]].forEach(([k,id])=>{
+    const b=document.getElementById(id);
+    b.className=v===k?"on":""; b.setAttribute("aria-selected",v===k?"true":"false");
+  });
+  if(v==="hist") renderHist();
+  if(v==="prog") buildProg();
+}
+
+// ---- backup ----
+function exportData(){
+  const blob=new Blob([JSON.stringify(load(),null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url; a.download="ppl-backup-"+todayStr()+".json"; a.click();
+  URL.revokeObjectURL(url); toast("Backup downloaded");
+}
+function importData(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{try{const data=JSON.parse(rd.result);
+    if(!Array.isArray(data)) throw 0;
+    store(data); renderHist(); toast("Imported ✓");
+  }catch(e){toast("Bad file")}};
+  rd.readAsText(f); ev.target.value="";
+}
+function wipe(){ if(confirm("Erase ALL sessions on this device? This cannot be undone.")){ store([]); renderHist(); toast("Erased"); } }
+
+// ---- rest timer ----
+let tInt=null,tLeft=90;
+function fmt(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function startTimer(){
+  const t=document.getElementById("timer");
+  if(tInt){clearInterval(tInt);tInt=null;t.classList.remove("run");document.getElementById("tbtn").textContent="Rest";return;}
+  t.classList.remove("done");t.classList.add("run");document.getElementById("tbtn").textContent="Pause";
+  tInt=setInterval(()=>{tLeft--;document.getElementById("tnum").textContent=fmt(tLeft);
+    if(tLeft<=0){clearInterval(tInt);tInt=null;t.classList.remove("run");t.classList.add("done");
+      document.getElementById("tbtn").textContent="Rest";
+      if(navigator.vibrate)navigator.vibrate([200,80,200]); try{beep()}catch(e){}}
+  },1000);
+}
+function resetTimer(){if(tInt){clearInterval(tInt);tInt=null;}tLeft=90;
+  document.getElementById("tnum").textContent=fmt(tLeft);
+  const t=document.getElementById("timer");t.classList.remove("run","done");
+  document.getElementById("tbtn").textContent="Rest";}
+function beep(){
+  const ac=new(window.AudioContext||window.webkitAudioContext)();
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.connect(g);g.connect(ac.destination);o.frequency.value=880;o.type="sine";
+  g.gain.setValueAtTime(.001,ac.currentTime);g.gain.exponentialRampToValueAtTime(.3,ac.currentTime+.02);
+  g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.5);o.start();o.stop(ac.currentTime+.5);
+}
+
+let toastT=null;
+function toast(m){const el=document.getElementById("toast");el.textContent=m;el.classList.add("show");
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove("show"),1600);}
+
+// ---- init ----
+document.getElementById("sessDate").value=todayStr();
+buildDaySel(); loadTemplate(); resetTimer();
+</script>
+</body>
+</html>
