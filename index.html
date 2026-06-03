@@ -204,8 +204,9 @@ const DAYS={
     warm:"Bodyweight squats, leg swings, hip circles — 3 min.",
     cool:"Quad stretch, hamstring forward fold, calf wall stretch — 2 min."},
   core:{label:"Core + Functional", desc:"Core · Stability · Mobility",
-    ex:[{n:"Dumbbell Suitcase Carry (log sec as reps)",t:"DB"},{n:"Dumbbell Russian Twist",t:"DB"},
-        {n:"Plank Hold (log sec as reps)",t:"BW"},{n:"Dead Bug (reps per side)",t:"BW"}],
+    ex:[{n:"Open Book",t:"BW",dr:"10"},{n:"Bird Dog (reps per side)",t:"BW",dr:"10"},
+        {n:"McGill Curl-Up (3s hold each)",t:"BW",dr:"6"},{n:"Alternating Prone Arm & Leg Raise",t:"BW",dr:"10"},
+        {n:"Suitcase Carry (log sec as reps)",t:"DB",dr:"40"}],
     warm:"World's greatest stretch, hip openers, cat-cow — 3 min.",
     cool:"Child's pose, supine twist, 90/90 hip stretch — 2 min."},
 };
@@ -244,7 +245,7 @@ function loadTemplate(){
     return {n:e.n,t:e.t,
       w: prev?prev.w:"",
       s: prev?prev.s:"3",
-      r: prev?prev.r:"8",
+      r: prev?prev.r:(e.dr||"8"),
       prev: prev?`${prev.w||0}kg · ${prev.s}×${prev.r}`:null};
   });
   renderEx(); renderStretch();
