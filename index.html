@@ -254,6 +254,30 @@ let curPhase="p1", curDay="push", exState=[], chkState=[];
 
 function todayStr(){const d=new Date(),z=n=>String(n).padStart(2,"0");
   return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());}
+// display only: ISO (YYYY-MM-DD) -> DD/MM/YY. Storage stays ISO so sorting still works.
+function fmtDate(iso){
+  if(!iso||iso.length<10) return iso||"";
+  const p=iso.split("-"); return p[2]+"/"+p[1]+"/"+p[0].slice(2);
+}
+function fmtDateShort(iso){ // DD/MM for chart axis labels
+  if(!iso||iso.length<10) return iso||"";
+  const p=iso.split("-"); return p[2]+"/"+p[1];
+}
+// The date input is set once on load. If the app sits open overnight it goes stale,
+// so refresh it whenever the app regains focus - but only if the user hasn't edited it.
+let autoDate="";
+function setAutoDate(){
+  const el=document.getElementById("sessDate");
+  autoDate=todayStr(); el.value=autoDate;
+}
+function refreshDateIfUntouched(){
+  const el=document.getElementById("sessDate");
+  if(!el) return;
+  if(el.value===autoDate && autoDate!==todayStr()) setAutoDate();
+}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshDateIfUntouched();});
+window.addEventListener("focus",refreshDateIfUntouched);
+window.addEventListener("pageshow",refreshDateIfUntouched);
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
 function store(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){toast("Save failed — storage blocked")}}
 function lastFor(name){for(const s of load()){if(s.ex){const h=s.ex.find(e=>e.n===name);if(h)return h;}}return null;}
@@ -384,6 +408,7 @@ function toggleAll(){
 }
 
 function saveSession(){
+  refreshDateIfUntouched();
   const date=document.getElementById("sessDate").value||todayStr();
   const d=DAYS[curDay], all=load();
   if(d.kind==="activity"){
@@ -412,18 +437,18 @@ function renderHist(){
   el.innerHTML=all.map(s=>{
     if(s.kind==="activity"){
       return `<div class="hsess">
-        <div class="top"><span class="day act">${s.dayLabel}</span><span class="dt">${s.date}</span></div>
+        <div class="top"><span class="day act">${s.dayLabel}</span><span class="dt">${fmtDate(s.date)}</span></div>
         <div class="anote">${s.duration?`${s.duration} min`:""}${s.note?` · ${s.note}`:""}</div>
         <button class="hdel" onclick="delSess(${s.id})">Delete</button></div>`;
     }
     if(s.kind==="checklist"){
       return `<div class="hsess">
-        <div class="top"><span class="day chk">${s.dayLabel}</span><span class="dt">${s.date}</span></div>
+        <div class="top"><span class="day chk">${s.dayLabel}</span><span class="dt">${fmtDate(s.date)}</span></div>
         <div class="anote">${s.done.length} of ${s.total||s.done.length} · ${s.done.join(", ")}</div>
         <button class="hdel" onclick="delSess(${s.id})">Delete</button></div>`;
     }
     return `<div class="hsess">
-      <div class="top"><span class="day">${s.dayLabel}</span><span class="dt">${s.date}</span></div>
+      <div class="top"><span class="day">${s.dayLabel}</span><span class="dt">${fmtDate(s.date)}</span></div>
       ${s.ex.map(e=>`<div class="li"><span>${e.n}</span><span class="v">${e.w||0}kg · ${e.s}×${e.r}</span></div>`).join("")}
       <button class="hdel" onclick="delSess(${s.id})">Delete</button></div>`;
   }).join("");
@@ -462,7 +487,7 @@ function renderProg(){
       <div class="b"><div class="k">Change</div><div class="v ${cls}">${sign}${delta}kg</div></div>
     </div>
     <div class="chart">${svgChart(d)}</div>
-    <div class="plog">${d.slice().reverse().map(x=>`<div class="ln"><span>${x.date}</span><span>${x.w}kg · ${x.s}×${x.r}</span></div>`).join("")}</div>
+    <div class="plog">${d.slice().reverse().map(x=>`<div class="ln"><span>${fmtDate(x.date)}</span><span>${x.w}kg · ${x.s}×${x.r}</span></div>`).join("")}</div>
   </div>`;
 }
 function svgChart(d){
@@ -475,8 +500,8 @@ function svgChart(d){
   const dots=d.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.w)}" r="4" fill="#39ff14"/><text x="${x(i)}" y="${y(p.w)-9}" fill="#6fa86f" font-size="10" text-anchor="middle" font-family="monospace">${p.w}</text>`).join("");
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight trend ${d[0].w} to ${d[d.length-1].w} kilograms over ${d.length} sessions">
     <polyline points="${pts}" fill="none" stroke="#39ff14" stroke-width="2.5" stroke-linejoin="round"/>${dots}
-    <text x="${pad}" y="${H-6}" fill="#6fa86f" font-size="10" font-family="monospace">${d[0].date.slice(5)}</text>
-    <text x="${W-pad}" y="${H-6}" fill="#6fa86f" font-size="10" text-anchor="end" font-family="monospace">${d[d.length-1].date.slice(5)}</text></svg>`;
+    <text x="${pad}" y="${H-6}" fill="#6fa86f" font-size="10" font-family="monospace">${fmtDateShort(d[0].date)}</text>
+    <text x="${W-pad}" y="${H-6}" fill="#6fa86f" font-size="10" text-anchor="end" font-family="monospace">${fmtDateShort(d[d.length-1].date)}</text></svg>`;
 }
 
 function view(v){
@@ -529,7 +554,7 @@ let toastT=null;
 function toast(m){const el=document.getElementById("toast");el.textContent=m;el.classList.add("show");
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove("show"),1600);}
 
-document.getElementById("sessDate").value=todayStr();
+setAutoDate();
 setPhase("p1"); resetTimer();
 </script>
 </body>
