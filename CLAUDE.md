@@ -56,6 +56,9 @@ JSON export/import in the History tab. This is the only safety net — `localSto
 ## Deploy
 Commit and push to `main`. GitHub Pages redeploys automatically within ~1 min. No build.
 
+## Version tag
+Header shows a small `v1.0`-style tag top-right of the title (`.titlerow` in `index.html`), hardcoded — not derived from git. **Bump it by 0.1 on every shipped change** so the owner can confirm on their phone that a deploy actually landed. No formal semver, just an incrementing marker.
+
 ## Open / unresolved
 - **Bench contradiction:** owner said the gym has no tilting bench, then chose Dumbbell Incline Press (which needs one). Resolve before trusting the Push day.
 - **Legs day** (Squat + RDL + Lunge + Calf) may exceed 35 min — flagged, not yet cut.
