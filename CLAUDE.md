@@ -57,7 +57,7 @@ JSON export/import in the History tab. This is the only safety net — `localSto
 Commit and push to `main`. GitHub Pages redeploys automatically within ~1 min. No build.
 
 ## Version tag
-Header shows a small `v1.0`-style tag top-right of the title (`.titlerow` in `index.html`), hardcoded — not derived from git. **Bump it by 0.1 on every shipped change** so the owner can confirm on their phone that a deploy actually landed. No formal semver, just an incrementing marker.
+Header shows a small `v1.N` tag top-right of the title (`.titlerow` in `index.html`). `N` is the total git commit count — **before committing, run `git rev-list --count HEAD` and set the tag to that number + 1** (the commit you're about to make). Hardcoded string, not computed at runtime (no build step, no network). Lets the owner confirm on their phone that a deploy actually landed.
 
 ## Open / unresolved
 - **Bench contradiction:** owner said the gym has no tilting bench, then chose Dumbbell Incline Press (which needs one). Resolve before trusting the Push day.
