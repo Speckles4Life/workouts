@@ -53,6 +53,8 @@ Line chart of weight over time per exercise, for any lift logged with weight > 0
 ## Backup
 JSON export/import in the History tab. This is the only safety net — `localStorage` is wiped by clearing browsing data, switching browsers, or reinstalling.
 
+`store(data, force)` refuses to write when `load()` flagged the existing storage as corrupted (unreadable JSON), unless `force=true` — this stops a normal save from silently overwriting unreadable-but-possibly-recoverable data. Only explicit user actions (`importData`, `wipe`) pass `force=true`. When corrupted, the History tab offers a raw-bytes export (`exportRaw()`) instead of the normal session list.
+
 ## Deploy
 Commit and push to `main`. GitHub Pages redeploys automatically within ~1 min. No build.
 

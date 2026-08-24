@@ -2,6 +2,13 @@
 
 Prioritised. Every item must respect the app's constraints: one file, offline, no cloud, no login, no frameworks. Reject anything that breaks them.
 
+## Data safety (critical)
+
+Found 2026-08-25 while investigating a user-reported data-loss incident (History showed only one stale entry from 11 Aug, everything since gone). Code audit ruled out the app itself as the cause — the storage key never changed and nothing auto-clears — but it surfaced two real weaknesses that could make a *future* storage problem worse or unrecoverable.
+
+A. **Corruption guard** — `load()` used to silently swallow unreadable/corrupted localStorage and return an empty array; the very next save would then permanently overwrite the corrupted (but possibly still partially recoverable) raw value with just the new entry, with zero warning. Now: corrupted storage is detected and flagged, normal saves are blocked with a toast, and a "raw storage" export lets you pull out whatever bytes are still there for manual recovery. *Status: implemented and pushed to prod.*
+B. **Import confirmation** — Import silently replaced ALL current sessions with the file's contents, no warning, no undo. Now shows a confirm dialog stating how many sessions on-device will be replaced by how many in the file, before proceeding. *Status: implemented and pushed to prod.*
+
 ## Next up
 
 1. **Auto-compare + weight nudge** — already pre-fills last session's weight/sets/reps and shows a "Last:" line; add a ▲/▼ indicator once today's numbers are entered plus a "add weight / hold" suggestion based on rep range (double progression). Uses existing history lookup, no new storage. *Status: implemented and pushed to prod, awaiting owner confirmation on-device.*

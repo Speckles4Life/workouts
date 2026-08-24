@@ -156,7 +156,7 @@
        and set this to that number + 1 (the commit you're about to make) -->
   <div class="titlerow">
     <h1>BJJ&nbsp;PREP<b>·</b>LOG</h1>
-    <span class="ver">v1.8</span>
+    <span class="ver">v1.9</span>
   </div>
   <div class="sub">offline · no login · data stays on this device</div>
   <div class="tabs" role="tablist" aria-label="Sections">
@@ -290,8 +290,31 @@ function refreshDateIfUntouched(){
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshDateIfUntouched();});
 window.addEventListener("focus",refreshDateIfUntouched);
 window.addEventListener("pageshow",refreshDateIfUntouched);
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
-function store(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){toast("Save failed — storage blocked")}}
+// If localStorage holds unreadable JSON (corruption, not "never used"), don't silently
+// treat it as empty - that would let the next save permanently overwrite it with just
+// one new entry. Flag it and block normal saves until the user imports or erases.
+let storageCorrupted=false;
+function load(){
+  const raw=localStorage.getItem(KEY);
+  if(raw===null){storageCorrupted=false;return[];}
+  try{
+    const data=JSON.parse(raw);
+    if(!Array.isArray(data))throw new Error("not an array");
+    storageCorrupted=false;
+    return data;
+  }catch(e){storageCorrupted=true;return[];}
+}
+function store(a,force){
+  if(storageCorrupted&&!force){toast("Storage corrupted — save blocked. See History tab.");return;}
+  try{localStorage.setItem(KEY,JSON.stringify(a));storageCorrupted=false;}catch(e){toast("Save failed — storage blocked")}
+}
+function exportRaw(){
+  const raw=localStorage.getItem(KEY)||"";
+  const blob=new Blob([raw],{type:"text/plain"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download="bjjprep-RAW-recovery-"+todayStr()+".txt";a.click();URL.revokeObjectURL(url);
+  toast("Raw storage downloaded");
+}
 function lastFor(name){for(const s of load()){if(s.ex){const h=s.ex.find(e=>e.n===name);if(h)return h;}}return null;}
 
 function setPhase(p){
@@ -466,6 +489,11 @@ function saveSession(){
 
 function renderHist(){
   const el=document.getElementById("histList"),all=load();
+  if(storageCorrupted){
+    el.innerHTML=`<div class="empty" style="color:var(--red)">Storage looks corrupted — sessions couldn't be read.<br>Saving is blocked to avoid losing anything else.<br><br>Export the raw data below, then Import a good backup or Erase to start fresh.</div>
+      <div class="tools"><button onclick="exportRaw()">Export raw storage (recovery)</button></div>`;
+    return;
+  }
   if(!all.length){el.innerHTML=`<div class="empty">No sessions yet.<br>Log one and it shows up here.</div>`;return;}
   el.innerHTML=all.map(s=>{
     if(s.kind==="activity"){
@@ -550,6 +578,7 @@ function view(v){
 }
 
 function exportData(){
+  if(storageCorrupted){toast("Storage corrupted — use 'Export raw storage' in History instead");return;}
   const blob=new Blob([JSON.stringify(load(),null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=url;a.download="bjjprep-backup-"+todayStr()+".json";a.click();URL.revokeObjectURL(url);toast("Backup downloaded");
@@ -557,10 +586,12 @@ function exportData(){
 function importData(ev){
   const f=ev.target.files[0];if(!f)return;const rd=new FileReader();
   rd.onload=()=>{try{const data=JSON.parse(rd.result);if(!Array.isArray(data))throw 0;
-    store(data);renderHist();toast("Imported ✓");}catch(e){toast("Bad file")}};
+    const cur=storageCorrupted?"an unreadable (corrupted)":String(load().length);
+    if(!confirm(`Import will REPLACE ${cur} session(s) currently on this device with ${data.length} session(s) from this file. This cannot be undone. Continue?`)){return;}
+    store(data,true);renderHist();toast("Imported ✓");}catch(e){toast("Bad file")}};
   rd.readAsText(f);ev.target.value="";
 }
-function wipe(){if(confirm("Erase ALL sessions on this device? This cannot be undone.")){store([]);renderHist();toast("Erased");}}
+function wipe(){if(confirm("Erase ALL sessions on this device? This cannot be undone.")){store([],true);renderHist();toast("Erased");}}
 
 let tInt=null,tLeft=90;
 function fmt(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
