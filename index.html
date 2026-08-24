@@ -78,6 +78,11 @@
     border-radius:10px;font-family:var(--mono);font-size:22px;text-align:center;font-weight:800;width:100%}
   .step input:focus{outline:none;border-color:var(--green)}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .cmp{font-size:11px;font-weight:800;font-family:var(--mono)}
+  .cmp.up{color:var(--green)} .cmp.dn{color:var(--red)} .cmp.same{color:var(--dim)}
+  .sugg{font-size:11px;font-weight:800;font-family:var(--mono);padding:1px 6px;border-radius:6px;border:1px solid var(--line)}
+  .sugg.up{color:var(--green);border-color:var(--green)}
+  .sugg.hold{color:var(--amber);border-color:var(--amber)}
 
   .addex{width:100%;background:var(--panel);border:1px dashed var(--line);color:var(--dim);min-height:var(--tap);
     border-radius:var(--r);font-weight:700;font-size:14px}
@@ -316,9 +321,9 @@ function renderStrength(){
   const d=DAYS[curDay];
   exState=d.ex.map(e=>{
     const prev=lastFor(e.n);
-    return {n:e.n,t:e.t,r:e.r||90,
+    return {n:e.n,t:e.t,r:e.r||90,dr:e.dr||"",
       w:prev?prev.w:"", s:prev?prev.s:"3", reps:prev?prev.r:(e.dr||"8"),
-      prev:prev?`${prev.w||0}kg · ${prev.s}×${prev.r}`:null};
+      prev:prev?`${prev.w||0}kg · ${prev.s}×${prev.r}`:null, prevRaw:prev};
   });
   document.getElementById("stretchTop").innerHTML=
     `<div class="stretch"><div class="h">Warm-up</div><p>${d.warm}</p></div>`;
@@ -326,15 +331,23 @@ function renderStrength(){
     `<div class="stretch"><div class="h">Cool-down</div><p>${d.cool}</p></div>`;
   renderEx();
 }
-function stepField(i,key,label,stepVal,min,unit){
+function stepField(i,key,label,stepVal,min,unit,cmp){
   const id=`f_${i}_${key}`;
-  return `<div class="field"><label class="lab" for="${id}">${label}</label>
+  return `<div class="field"><label class="lab" for="${id}">${label}${cmp?` <span class="cmp" id="cmp_${i}"></span>`:""}</label>
     <div class="step">
       <button type="button" aria-label="Decrease ${label}" onclick="bump(${i},'${key}',${-stepVal},${min})">−</button>
       <input id="${id}" type="number" inputmode="decimal" value="${exState[i][key]}"
-        aria-label="${label}${unit?(' in '+unit):''}" oninput="exState[${i}].${key}=this.value">
+        aria-label="${label}${unit?(' in '+unit):''}" oninput="exState[${i}].${key}=this.value${cmp?`;updateCmp(${i})`:""}">
       <button type="button" aria-label="Increase ${label}" onclick="bump(${i},'${key}',${stepVal},${min})">+</button>
     </div></div>`;
+}
+// double progression: hit or beat last time's target reps -> suggest adding weight; otherwise hold weight, chase reps
+function suggestion(e){
+  if(!e.prevRaw||!e.dr) return "";
+  const target=parseInt(e.dr),lastReps=parseInt(e.prevRaw.r);
+  if(isNaN(target)||isNaN(lastReps)) return "";
+  if(lastReps>=target) return `<span class="sugg up">▲ ${e.t==="BW"?"Add load / hold longer":"Add weight"}</span>`;
+  return `<span class="sugg hold">Hold · +reps</span>`;
 }
 function renderEx(){
   const el=document.getElementById("body"); el.innerHTML="";
@@ -343,26 +356,39 @@ function renderEx(){
     const nameHTML=e.editable
       ? `<input type="text" value="${e.n}" aria-label="Exercise name" oninput="exState[${i}].n=this.value" style="font-size:15px;min-height:40px;flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:0 10px;font-family:var(--sans)">`
       : `<span>${e.n}</span>`;
+    const sugg=suggestion(e);
     d.innerHTML=`
       <div class="name">${nameHTML}
         <span style="display:flex;gap:8px;align-items:center">
           ${e.t?`<span class="tag">${e.t}</span>`:""}
           <button class="delx" aria-label="Remove ${e.n}" onclick="delEx(${i})">✕</button>
         </span></div>
-      <div class="meta">${e.prev?`Last: ${e.prev} · `:""}<span class="rest">Rest ${e.r}s</span></div>
-      ${stepField(i,"w","Weight (kg)",2.5,0,"kilograms")}
+      <div class="meta">${e.prev?`Last: ${e.prev}${sugg?` · ${sugg}`:""} · `:""}<span class="rest">Rest ${e.r}s</span></div>
+      ${stepField(i,"w","Weight (kg)",2.5,0,"kilograms",true)}
       <div class="grid2">${stepField(i,"s","Sets",1,1,"")}${stepField(i,"reps","Reps",1,0,"")}</div>`;
     el.appendChild(d);
+    updateCmp(i);
   });
+}
+function updateCmp(i){
+  const e=exState[i],el=document.getElementById(`cmp_${i}`); if(!el)return;
+  if(!e.prevRaw){el.textContent="";el.className="cmp";return;}
+  const cw=parseFloat(e.w),pw=parseFloat(e.prevRaw.w);
+  if(e.w===""||isNaN(cw)||isNaN(pw)){el.textContent="";el.className="cmp";return;}
+  const diff=Math.round((cw-pw)*10)/10;
+  if(diff>0){el.textContent=`▲ +${diff}kg`;el.className="cmp up";}
+  else if(diff<0){el.textContent=`▼ ${diff}kg`;el.className="cmp dn";}
+  else{el.textContent="=";el.className="cmp same";}
 }
 function bump(i,key,delta,min){
   let v=parseFloat(exState[i][key]); if(isNaN(v))v=0;
   v=Math.round((v+delta)*10)/10; if(v<min)v=min;
   exState[i][key]=String(v);
   const inp=document.getElementById(`f_${i}_${key}`); if(inp)inp.value=exState[i][key];
+  if(key==="w") updateCmp(i);
 }
 function delEx(i){exState.splice(i,1);renderEx();}
-function addBlank(){exState.push({n:"New exercise",t:"",r:90,w:"",s:"3",reps:"8",editable:true,prev:null});renderEx();}
+function addBlank(){exState.push({n:"New exercise",t:"",r:90,dr:"",w:"",s:"3",reps:"8",editable:true,prev:null,prevRaw:null});renderEx();}
 
 function renderActivity(){
   const d=DAYS[curDay];
