@@ -2,23 +2,21 @@
 
 Prioritised. Every item must respect the app's constraints: one file, offline, no cloud, no login, no frameworks. Reject anything that breaks them.
 
-## Data safety (critical)
-
-Found 2026-08-25 while investigating a user-reported data-loss incident (History showed only one stale entry from 11 Aug, everything since gone). Code audit ruled out the app itself as the cause — the storage key never changed and nothing auto-clears — but it surfaced two real weaknesses that could make a *future* storage problem worse or unrecoverable.
-
-A. **Corruption guard** — `load()` used to silently swallow unreadable/corrupted localStorage and return an empty array; the very next save would then permanently overwrite the corrupted (but possibly still partially recoverable) raw value with just the new entry, with zero warning. Now: corrupted storage is detected and flagged, normal saves are blocked with a toast, and a "raw storage" export lets you pull out whatever bytes are still there for manual recovery. *Status: implemented and pushed to prod.*
-B. **Import confirmation** — Import silently replaced ALL current sessions with the file's contents, no warning, no undo. Now shows a confirm dialog stating how many sessions on-device will be replaced by how many in the file, before proceeding. *Status: implemented and pushed to prod.*
-
 ## Next up
 
-1. **Auto-compare + weight nudge** — already pre-fills last session's weight/sets/reps and shows a "Last:" line; add a ▲/▼ indicator once today's numbers are entered plus a "add weight / hold" suggestion based on rep range (double progression). Uses existing history lookup, no new storage. *Status: implemented and pushed to prod, awaiting owner confirmation on-device.*
-2. **PR tracking** — detect all-time best weight per exercise and flag "PR" on save and in the Progress tab. Same history lookup as item 1, so build them together; weight-based PRs first.
-3. **Version tag** — small version marker (e.g. `v1.0`) top-right of the title, so the owner can tell at a glance whether the phone is showing the latest deploy. Hardcoded string, bumped manually on every shipped change — no build step to derive it from. *Status: implemented and pushed to prod, awaiting owner confirmation on-device.*
+1. **PR tracking** — detect all-time best weight per exercise and flag "PR" on save and in the Progress tab. Reuses the same history lookup as the (now shipped) weight nudge; weight-based PRs first.
 
 ## Later
 
-4. **Rep/volume-based progress** — the Progress tab is weight-only, so pull-ups and dead hangs never chart; add a reps/seconds trend for bodyweight and timed lifts.
-5. **Bodyweight tracking** — log a number + date, show a trend line, same shape as the activity log, no cloud.
+2. **Rep/volume-based progress** — the Progress tab is weight-only, so pull-ups and dead hangs never chart; add a reps/seconds trend for bodyweight and timed lifts.
+3. **Bodyweight tracking** — log a number + date, show a trend line, same shape as the activity log, no cloud.
+
+## Done
+
+- **Auto-compare + weight nudge** (2026-08-25) — ▲/▼ indicator comparing today's entered weight to last session's, plus an "Add weight" / "Hold · +reps" suggestion based on whether last session hit the target rep count (simplified double progression — no rep-range field in the data model, so this uses last-reps-vs-target as a proxy). Uses the existing history lookup, no new storage. Confirmed working on-device.
+- **Version tag** (2026-08-25) — `v1.N` marker top-right of the title, `N` = total git commit count, hardcoded per commit (no build step). Lets the owner confirm a deploy landed at a glance. Confirmed working on-device.
+- **Corruption guard** (2026-08-25) — found while investigating a data-loss incident (History showed only one stale entry from 11 Aug, everything since gone; code audit ruled out the app as the cause, but surfaced this). `load()` no longer silently treats unreadable localStorage as empty; normal saves are now blocked when storage is flagged corrupted, and a raw-bytes export lets the owner recover whatever's left manually. Confirmed working on-device.
+- **Import confirmation** (2026-08-25) — Import used to replace all sessions with a file's contents with zero warning. Now confirms session counts (current vs incoming) before replacing anything. Confirmed working on-device.
 
 ## Considered and rejected — do not re-litigate
 
